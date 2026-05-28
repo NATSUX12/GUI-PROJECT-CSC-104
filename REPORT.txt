@@ -1,0 +1,172 @@
+PROJECT OVERVIEW
+A Java Swing-based cashier system with MySQL database backend.
+Allows cashiers to select products, set quantities, view the running
+total, enter payment, and record sales. The database stores product
+catalog and sale transactions persistently. The system now includes
+full product CRUD management and a sales history viewer.
+
+FILE STRUCTURE
+Project-Cashier-type-shiii/
+├── .vscode/
+│   ├── settings.json          - VS Code classpath config pointing to lib/mysql-connector-j-9.6.0.jar
+│   └── launch.json            - VS Code run config with ui.CashierUI as main class
+├── lib/                       - Place mysql-connector-j-9.6.0.jar here (empty by default)
+├── src/
+│   ├── db/DBConnection.java   - Singleton MySQL connection: CRUD for products, sale insert, sale load
+│   ├── model/
+│   │   ├── SystemEntity.java  - Abstract base class with id, getFormattedId(), abstract getDisplayName()
+│   │   ├── Displayable.java   - Interface with getSummary() method
+│   │   ├── Product.java       - Extends SystemEntity, implements Displayable + Comparable
+│   │   └── SaleRecord.java    - Extends SystemEntity, implements Displayable, holds sale data
+│   └── ui/CashierUI.java      - Swing UI with JTabbedPane: Cashier, Manage Products, Sales History
+├── sql/
+│   └── setup.sql              - Database DDL and seed data for products and sales tables
+├── run.sh                     - Compile/run script for Unix/Mac
+├── run.bat                    - Compile/run script for Windows
+└── REPORT.txt                 - This file
+
+SETUP INSTRUCTIONS
+
+a. Prerequisites
+   - JDK 17 or higher installed and on PATH
+   - XAMPP (or any MySQL server) running with MySQL on port 3306
+   - VS Code with Extension Pack for Java (optional but recommended)
+
+b. Database Setup
+   1. Start XAMPP and ensure MySQL is running
+   2. Open phpMyAdmin (http://localhost/phpmyadmin)
+   3. Click "New" on the left sidebar, enter database name "cashierdb", click Create
+   4. Select cashierdb from the left sidebar, click the SQL tab
+   5. Paste the entire contents of sql/setup.sql into the text area
+   6. Click Go to execute
+
+c. MySQL Connector
+   - Download mysql-connector-j-8.x.x.jar from https://dev.mysql.com/downloads/connector/j/
+   - Rename it to mysql-connector-j-9.6.0.jar (or keep original name)
+   - Drop the jar file into the lib/ folder
+   - settings.json already references lib/**/*.jar, no extra config needed
+
+d. Running the App
+   Windows: Double-click run.bat
+   Mac/Linux: Open terminal in Project-Cashier-type-shiii/ directory, run: chmod +x run.sh && ./run.sh
+   VS Code: Open Project-Cashier-type-shiii/ folder in VS Code, open CashierUI.java, click Run above main method
+            Or press F5 with the included launch.json
+
+HOW TO USE THE APP
+
+Tab 1 — Cashier:
+   1. Launch the application using one of the methods above
+   2. The Cashier tab shows a product dropdown pre-loaded from the database
+   3. Select a product and enter quantity (default is 1)
+   4. Click "Add to Cart" — the item appears in the table with subtotal
+   5. Repeat for additional items; the total updates automatically
+   6. Enter the payment amount in the Payment field
+      — Change auto-calculates as you type, no button needed
+   7. Click "Pay" to complete the transaction
+      — A success dialog shows total, payment, and change
+      — The sale is recorded in the sales table
+      — The cart clears automatically for the next customer
+   8. Click "Clear" at any time to reset the cart
+
+Tab 2 — Manage Products:
+   1. Click the "Manage Products" tab to see all products in a table
+   2. ADD a product: enter a name and price in the "Add New Product"
+      section at the top, then click "Add Product"
+   3. EDIT a product: click a row in the table, the name and price
+      fields in the "Selected Product" section auto-populate. Edit
+      the values and click "Save". The table and Cashier tab combo
+      box refresh immediately.
+   4. DELETE a product: click a row in the table, then click "Delete".
+      A confirmation dialog appears — confirm to remove the product
+      from the database. The table and Cashier tab combo box refresh.
+
+Tab 3 — Sales History:
+   1. Click the "Sales History" tab to see all completed sales
+   2. Sales are loaded automatically when you switch to this tab
+   3. Each sale shows its ID, total, payment amount, change given,
+      and the date/time it was recorded
+   4. This view is read-only — sales cannot be edited or deleted
+
+OOP CONCEPTS USED
+
+   1. INHERITANCE — SystemEntity is an abstract base class that
+      provides common fields (id) and methods (getFormattedId()) to
+      its subclasses. Product extends SystemEntity to represent a
+      sellable item. SaleRecord extends SystemEntity to represent a
+      completed sale transaction. Both subclasses inherit the id
+      field and implement the abstract getDisplayName() method in
+      their own way — Product returns the product name, while
+      SaleRecord returns a formatted string with "Sale #" and total.
+      The abstract method forces every subclass to provide its own
+      display name implementation, ensuring consistency.
+
+   2. POLYMORPHISM — The Displayable interface defines a common
+      contract with getSummary(). Both Product and SaleRecord
+      implement this interface with their own version of getSummary().
+      The DBConnection.getAllDisplayables() method loads both
+      products and sales, puts them into a single List<Displayable>,
+      and returns them. The calling code iterates over the list and
+      calls getSummary() on each element without knowing whether it
+      is a Product or a SaleRecord — the JVM resolves the correct
+      method at runtime based on the actual object type. This is
+      runtime polymorphism.
+
+   3. ENCAPSULATION — All classes use private fields with public
+      getter methods. Data is accessed through controlled interfaces
+      rather than directly. DBConnection encapsulates all database
+      logic behind static methods, so UI classes never write raw SQL.
+
+   4. ABSTRACTION — SystemEntity is abstract and cannot be
+      instantiated directly. It defines the concept of "an entity
+      with an ID and a display name" without specifying how the
+      display name is generated. That detail is left to subclasses,
+      who provide concrete implementations.
+
+   5. INTERFACE — Displayable is a pure interface with a single
+      abstract method getSummary(). It represents the capability of
+      "being displayable as a summary" and can be implemented by any
+      class regardless of its position in the class hierarchy.
+
+   6. COMPARABLE — Product retains its existing implementation of
+      Comparable<Product> to allow sorting by name, which powers
+      the alphabetical ordering in the JComboBox dropdown.
+
+CRUD OPERATIONS
+
+   CREATE — DBConnection.addProduct(String name, double price)
+      Inserts a new row into the products table. Called from the
+      Manage Products tab's Add Product button after validation.
+
+   READ — DBConnection.loadProducts()
+      Returns all products as a List<Product>. Used in the Cashier
+      tab to populate the product combo box and in the Manage
+      Products tab to fill the product table.
+
+   READ — DBConnection.loadSales()
+      Returns all sales as a List<SaleRecord>. Called when the user
+      switches to the Sales History tab, populating the sales table.
+
+   UPDATE — DBConnection.updateProduct(int id, String name, double price)
+      Updates an existing product row identified by its ID. Called
+      from the Manage Products tab when the user edits fields and
+      clicks Save.
+
+   DELETE — DBConnection.deleteProduct(int id)
+      Removes a product row identified by its ID. Called from the
+      Manage Products tab when the user confirms deletion via the
+      confirmation dialog.
+
+   Demo method — DBConnection.getAllDisplayables()
+      Loads both products and sales and returns them as a combined
+      List<Displayable>. This method exists to demonstrate runtime
+      polymorphism but is not directly used by the UI.
+
+KNOWN LIMITATIONS
+   - Single connection: DBConnection uses one shared connection, no connection pooling
+   - No user authentication: any user with app access can record sales
+   - No void/refund functionality: once a sale is recorded, it cannot be reversed
+   - No receipt printing: sales are stored in the database only
+   - No multi-currency or tax calculation support
+   - MySQL only: no support for other database backends
+   - No offline mode: requires active MySQL connection at all times
+   - Sales table is read-only in the UI: no edit or delete from the Sales History tab
